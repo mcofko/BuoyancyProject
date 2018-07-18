@@ -29,6 +29,8 @@ public class CubeController : MonoBehaviour {
     private float _currentViscosity;
     private Vector3 _currentViscosityVector;
 
+    private Vector3[] _cubeVerticesLS = new Vector3[8];
+    private Vector3[] _cubeVerticesWS = new Vector3[8];
     private List<Vector3> _surfacePointsPushingDown;
     private Vector3 vec1FacinfSurface;
     private Vector3 vec2FacinfSurface;
@@ -65,11 +67,14 @@ public class CubeController : MonoBehaviour {
             linePrefabs[i].transform.parent = gameObject.transform;
         }
 
-        //facingVelocityPlane = Instantiate(planePrefab, Vector3.zero, Quaternion.identity);
+        UpdateCubeVertices(true);
 	}
 	
 	// Update is called once per frame
 	void Update () {
+        return;
+
+        UpdateCubeVertices(false);
         CalculateWaterForcePointsPushingOnSurface();
         Vector3 pivotPoint = UpdateCubesPivotPointOptimized();
         ApplyWaterForce(pivotPoint);
@@ -123,9 +128,6 @@ public class CubeController : MonoBehaviour {
         vec2FacinfSurface = velEndPoint + perp2 * 4.0f;
 
         //DrawVelocityVectors(velEndPoint);
-
-
-
         //facingVelocityPlane.transform.position = velEndPoint;
         //facingVelocityPlane.transform.LookAt(transform.position, Vector3.up);
 
@@ -184,13 +186,10 @@ public class CubeController : MonoBehaviour {
                     {
                         centerOfMass += hit.point;
                         underWaterPoints.Add(hit.point);
-                        //Debug.DrawLine(start, hit.point, Color.blue, 0.1f, false);
                     }
                 }
             }
         }
-
-        
 
         if (underWaterPoints.Count > 0)
         {
@@ -205,59 +204,30 @@ public class CubeController : MonoBehaviour {
         return centerOfMass;
     }
 
-    Vector3 UpdateCubesPivotPoint()
+    void UpdateCubeVertices(bool initialize)
     {
-        float width = transform.localScale.x / 2;
-        float height = transform.localScale.y / 2;
-        float depth = transform.localScale.z / 2;
+        if (initialize)
+        { 
+            float width = 0.5f; //transform.localScale.x / 2 / 3
+            float height = 0.5f; //transform.localScale.y / 2 / 0.66f
+            float depth = 0.5f;
 
-        // get all corner points of the cube, and check which ones are under water
-        List<Vector3> allPoints = new List<Vector3>();
-        List<Vector3> underWaterPoints = new List<Vector3>(); ;
+            _cubeVerticesLS[0] = new Vector3(-width, -height, -depth);
+            _cubeVerticesLS[1] = new Vector3(+width, -height, -depth);
+            _cubeVerticesLS[2] = new Vector3(-width, +height, -depth);
+            _cubeVerticesLS[3] = new Vector3(+width, +height, -depth);
+            _cubeVerticesLS[4] = new Vector3(-width, -height, +depth);
+            _cubeVerticesLS[5] = new Vector3(+width, -height, +depth);
+            _cubeVerticesLS[6] = new Vector3(-width, +height, +depth);
+            _cubeVerticesLS[7] = new Vector3(+width, +height, +depth);
+        }
 
-        Vector3 center = transform.position;
-        //front side
-        
-        Vector3 p1 = (center + new Vector3(-width, -height, -depth));
-        Vector3 p2 = center + new Vector3(+width, -height, -depth);
-        Vector3 p3 = center + new Vector3(-width, +height, -depth);
-        Vector3 p4 = center + new Vector3(+width, +height, -depth);
-        //back side
-        Vector3 p5 = center + new Vector3(-width, -height, +depth);
-        Vector3 p6 = center + new Vector3(+width, -height, +depth);
-        Vector3 p7 = center + new Vector3(-width, +height, +depth);
-        Vector3 p8 = center + new Vector3(+width, +height, +depth);
-        //midlle point
-        Vector3 p9 = center + new Vector3(0, -height, +depth);
-        Vector3 p10 = center + new Vector3(0, -height, -depth);
-        Vector3 p11 = center + new Vector3(0, +height, +depth);
-        Vector3 p12 = center + new Vector3(0, +height, -depth);
-
-
-        allPoints.AddRange(new Vector3[] { p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12 });
-        Vector3 centerOfMass = Vector3.zero;
-        for (int i = 0; i < allPoints.Count; i++)
+        for (int i = 0; i < _cubeVerticesLS.Length; i++)
         {
-            Instantiate(spherePrefab, allPoints[i], Quaternion.identity);
+            _cubeVerticesWS[i] = transform.TransformPoint(_cubeVerticesLS[i]);
 
-            if (allPoints[i].y < waterLevel)
-            {
-                underWaterPoints.Add(allPoints[i]);
-                centerOfMass += allPoints[i];
-            }
+            Instantiate(spherePrefab, _cubeVerticesWS[i], Quaternion.identity);
         }
-        allPoints.Clear();
-
-        if (underWaterPoints.Count > 0) { 
-            centerOfMass /= underWaterPoints.Count;
-        }
-        else
-        {
-            centerOfMass = center;
-        }
-
-        //Debug.Log("New Center Point: " + centerOfMass + ", position:" + center);
-        return centerOfMass;
     }
 
     //  float volume = mesh.bounds.size.x * mesh.bounds.size.y * mesh.bounds.size.z;
@@ -303,12 +273,6 @@ public class CubeController : MonoBehaviour {
             waterLevel = transform.position.y - gameObject.transform.localScale.y / 2;
         }
     }
-
-    private void OnTriggerStay(Collider other)
-    {
-        //cubeBody.AddForce(forceWaterUp);
-    }
-
 
     void RestartCubesPosition()
     {

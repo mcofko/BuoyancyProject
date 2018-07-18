@@ -8,12 +8,13 @@ public class WaveController : MonoBehaviour {
     private MeshRenderer waveMR;
     private MeshFilter waveMF;
     private Mesh waveMesh;
+    private Mesh smootherWaveMesh;
     private MeshCollider waveMC;
 
     public Material material;
     [Range(10, 50)]
     public int _dimension = 20;
-    [Range(0.0f, 100.0f)]
+    [Range(0.0f, 30.0f)]
     public float _frequency = 1.0f;
     [Range(0.0f, 10.0f)]
     public float _amplitude = 0.75f;
@@ -35,7 +36,8 @@ public class WaveController : MonoBehaviour {
         waveMR = GetComponent<MeshRenderer>();
         waveMC = GetComponent<MeshCollider>();
         waveMC.convex = true;
-        waveMesh = waveMF.mesh;
+        waveMesh = waveMF.sharedMesh;
+        if (waveMesh == null) waveMesh = new Mesh();
 
         _sineWaveData = new SineWaveData(_amplitude, _frequency, _amplOffset, _elapsedTime, _noise, _waterEffectEnum);
     }
@@ -81,17 +83,27 @@ public class WaveController : MonoBehaviour {
 
         waveMesh.vertices = vertices;
         waveMesh.RecalculateNormals();
-        waveMesh.RecalculateBounds();
         waveMesh.RecalculateTangents();
-        // update meshFilter with new generated mesh
-        waveMF.mesh = waveMesh;
+        waveMesh.RecalculateBounds();
+        
+
+        return;
+        smootherWaveMesh = CloneMesh(waveMesh);
+        // Apply Laplacian Smoothing Filter to Mesh
+        int iterations = 1;
+        for (int i = 0; i < iterations; i++)
+            smootherWaveMesh.vertices = MeshSmoother.SmoothFilter.hcFilter(waveMesh.vertices, smootherWaveMesh.vertices, smootherWaveMesh.triangles, 0.0f, 0.5f);
     }
 
     void UpdateWavesRenderer()
     {
+        
         waveMF.sharedMesh = waveMesh;
         waveMR.material = material;
-        waveMC.sharedMesh = waveMesh;
+        // this = null is necessary, because it forces collision mesh to be recalculated,
+        // if you don't do thing then Unity thinks that it's the same mesh and doesn't recalculate it
+        waveMC.sharedMesh = null;
+        waveMC.sharedMesh = waveMF.sharedMesh;
     }
 
     void GenerateWaves()
@@ -107,6 +119,7 @@ public class WaveController : MonoBehaviour {
         waveMesh.uv = uvs1D.ToArray();
         waveMesh.triangles = triangles1D.ToArray();
         waveMesh.RecalculateNormals();
+        waveMesh.RecalculateTangents();
         waveMesh.RecalculateBounds();
     }
 
@@ -124,5 +137,31 @@ public class WaveController : MonoBehaviour {
         waveMesh.triangles = triangles.ToArray();
         waveMesh.RecalculateNormals();
         waveMesh.RecalculateBounds();
+
+        return;
+        smootherWaveMesh = CloneMesh(waveMesh);
+        // Apply Laplacian Smoothing Filter to Mesh
+        int iterations = 1;
+        for (int i = 0; i < iterations; i++)
+            smootherWaveMesh.vertices = MeshSmoother.SmoothFilter.hcFilter(waveMesh.vertices, smootherWaveMesh.vertices, smootherWaveMesh.triangles, 0.0f, 0.5f);
+    }
+
+    private static Mesh CloneMesh(Mesh mesh)
+    {
+        Mesh clone = new Mesh();
+        clone.vertices = mesh.vertices;
+        clone.normals = mesh.normals;
+        clone.tangents = mesh.tangents;
+        clone.triangles = mesh.triangles;
+        clone.uv = mesh.uv;
+        //clone.uv1 = mesh.uv1;
+        clone.uv2 = mesh.uv2;
+        clone.bindposes = mesh.bindposes;
+        clone.boneWeights = mesh.boneWeights;
+        clone.bounds = mesh.bounds;
+        clone.colors = mesh.colors;
+        clone.name = mesh.name;
+        //TODO : Are we missing anything?
+        return clone;
     }
 }

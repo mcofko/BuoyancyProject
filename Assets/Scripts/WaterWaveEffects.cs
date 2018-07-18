@@ -74,6 +74,8 @@ public class WaterWaveEffects {
         
         y += AddNoise(includeNoise, waveData);
 
+        y += AddPerlinNoise(progressXAxis, progressZAxis);
+
         return y;
     }
 
@@ -82,15 +84,13 @@ public class WaterWaveEffects {
         progressXAxis -= 0.5f;
         progressZAxis -= 0.5f;
 
-        if(progressXAxis < -0.51 || progressXAxis > 0.51)
-        {
-            int stio = 0;
-        }
-
         float offset = (progressXAxis * progressXAxis) + (progressZAxis * progressZAxis);
         float y = waveData.Amplitude * Mathf.Sin((waveData.ElapsedTime + offset * waveData.Frequency) * Mathf.PI);
 
         y += AddNoise(includeNoise, waveData);
+
+
+        y += AddPerlinNoise(progressXAxis, progressZAxis);
 
         return y;
     }
@@ -104,5 +104,12 @@ public class WaterWaveEffects {
         }
 
         return noise;
+    }
+
+    float AddPerlinNoise(float progressXAxis, float progressZAxis)
+    {
+        float noiseWalk = 10.0f;
+        float noiseStrength = 1.0f;
+        return Mathf.PerlinNoise(progressXAxis + noiseWalk, progressZAxis + Mathf.Sin(Time.time* 0.1f)) * noiseStrength;
     }
 }

@@ -134,7 +134,6 @@ namespace Waves
                 }
             }
 
-            
             Convert2DTo1DArray(vertices, uvs, triangles, out vertices1D, out uvs1D, out triangles1D);
         }
 
@@ -159,14 +158,11 @@ namespace Waves
                     float xPos = (float)i * width;
 
                     vertices.Add(new Vector3(xPos, yPos, zPos));
-                    //vertices[row][i * 2 + 1] = new Vector3(xPos, yPos, zPos + height);
                     uvs.Add(new Vector2(0.0f, 1.0f));
                 }
             }
 
             int[] singleTriangle = new int[6];
-            //int row = 0;
-            //segmentation = 5, i = 1, j = 3
             for (int i = 0; i < _segmentation - 1; i++)
             {
                 for (int j = 0; j < _segmentation - 1; j++)
