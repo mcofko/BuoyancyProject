@@ -13,16 +13,17 @@ public class WaveController : MonoBehaviour {
     public Material material;
     [Range(10, 50)]
     public int _dimension = 20;
-    [Range(0.0f, 3.0f)]
+    [Range(0.0f, 100.0f)]
     public float _frequency = 1.0f;
-    [Range(0.0f, 5.0f)]
+    [Range(0.0f, 10.0f)]
     public float _amplitude = 0.75f;
     [Range(0.0f, 30.0f)]
     public float _amplOffset = 0.0f;
-    [Range(0.0f, 10.0f)]
+    [Range(-10.0f, 10.0f)]
     public float _speed = 1.0f;
     [Range(0.0f, 1.0f)]
     public float _noise = 0.0f;
+    public WaterWaveEffects.WaterEffects _waterEffectEnum = WaterWaveEffects.WaterEffects.RIPPLE;
 
 
     private float _elapsedTime;
@@ -36,7 +37,7 @@ public class WaveController : MonoBehaviour {
         waveMC.convex = true;
         waveMesh = waveMF.mesh;
 
-        _sineWaveData = new SineWaveData(_amplitude, _frequency, _amplOffset, _elapsedTime, _noise);
+        _sineWaveData = new SineWaveData(_amplitude, _frequency, _amplOffset, _elapsedTime, _noise, _waterEffectEnum);
     }
 
     // Use this for initialization
@@ -66,6 +67,7 @@ public class WaveController : MonoBehaviour {
         _sineWaveData.Frequency = _frequency;
         _sineWaveData.ElapsedTime = _elapsedTime;
         _sineWaveData.Noise = _noise;
+        _sineWaveData.WaterEffectEnum = _waterEffectEnum;
         Waves.WaveGenerator.Instance.SineWaveData = _sineWaveData;
     }
 

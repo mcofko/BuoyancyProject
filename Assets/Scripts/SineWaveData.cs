@@ -70,12 +70,27 @@ public class SineWaveData : System.Object {
         }
     }
 
-    public SineWaveData(float amplitude, float frequency, float amplitudeOffset, float elapsedTime, float noise)
+    private WaterWaveEffects.WaterEffects _waterEffectEnum;
+    public WaterWaveEffects.WaterEffects WaterEffectEnum
+    {
+        get
+        {
+            return _waterEffectEnum;
+        }
+
+        set
+        {
+            _waterEffectEnum = value;
+        }
+    }
+
+    public SineWaveData(float amplitude, float frequency, float amplitudeOffset, float elapsedTime, float noise, WaterWaveEffects.WaterEffects waterEffects)
     {
         this.Amplitude = amplitude;
         this.Frequency = frequency;
         this.AmplOffset = amplitudeOffset;
         this.ElapsedTime = elapsedTime;
         this.Noise = noise;
+        this.WaterEffectEnum = waterEffects;
     }
 }

@@ -51,7 +51,7 @@ namespace Waves
                 for (int i = 0; i < (_segmentation + 1); i++)
                 {
                     float progress = (float)i / (float)_segmentation;
-                    float yPos = CalculatePointHeight(progress);
+                    float yPos = WaterWaveEffects.Instance.GetWaveYPoint(WaterWaveEffects.WaterEffects.FORWARD, progress, 0, _sineWaveData);
                     float xPos = meshVertices[i * 2 + 0 + rowIndex].x;
                     float zPos = meshVertices[i * 2 + 0 + rowIndex].z;
 
@@ -67,7 +67,7 @@ namespace Waves
         public void CalculateWaveVerticesOptimized(ref Vector3[] vertices, ref int[] triangles, Vector3[] meshVertices)
         {
             float progressZAxis = 0;
-
+            float progressXAxis = 0;
             for (int row = 0; row < _segmentation; row++)
             {
                 int rowIndex = row * _segmentation;
@@ -75,8 +75,8 @@ namespace Waves
 
                 for (int i = 0; i < _segmentation; i++)
                 {
-                    float progress = (float)i / (float)DELIMETER;
-                    float yPos = CalculatePointHeightSpecial(progress, progressZAxis, false) + _noiseValues[row * _segmentation + i];
+                    progressXAxis = (float)i / (float)_segmentation;
+                    float yPos = WaterWaveEffects.Instance.GetWaveYPoint(_sineWaveData.WaterEffectEnum, progressXAxis, progressZAxis, _sineWaveData);
 
                     float xPos = meshVertices[i + rowIndex].x;
                     float zPos = meshVertices[i + rowIndex].z;
@@ -115,7 +115,7 @@ namespace Waves
                 for (int i = 0; i < (_segmentation + 1); i++)
                 {
                     progress = (float)i / (float)_segmentation + 1.0f;
-                    float yPos = CalculatePointHeight(progress);
+                    float yPos = WaterWaveEffects.Instance.GetWaveYPoint(WaterWaveEffects.WaterEffects.FORWARD, progress, 0, _sineWaveData);
                     float xPos = (float)i * width;
 
                     vertices[row][i * 2 + 0] = new Vector3(xPos, yPos, zPos);
@@ -150,13 +150,12 @@ namespace Waves
             for (int row = 0; row < _segmentation; row++)
             {
                 float zPos = (float)row * height;
-                progressZAxis = (float)row / (float)_segmentation;
+                progressZAxis = (float)row / (float)_segmentation; //_segmentation;
 
                 for (int i = 0; i < _segmentation; i++)
                 {
-                    progressXAxis = (float)i / (float)DELIMETER;
-                    //float yPos = CalculatePointHeightWithNoise(progress);
-                    float yPos = CalculatePointHeightSpecial(progressXAxis, progressZAxis, true);
+                    progressXAxis = (float)i / (float)_segmentation;
+                    float yPos = WaterWaveEffects.Instance.GetWaveYPoint(_sineWaveData.WaterEffectEnum, progressXAxis, progressZAxis, _sineWaveData);
                     float xPos = (float)i * width;
 
                     vertices.Add(new Vector3(xPos, yPos, zPos));
@@ -208,43 +207,54 @@ namespace Waves
         //******************************** Frequency => y = sin (a * x) *********
         //******************************** Move curve => y = sin (a + x) ********
         //***********************************************************************
-        float CalculatePointHeight(float progress)
-        {
-            float y = _sineWaveData.Amplitude * Mathf.Sin(_sineWaveData.Frequency * progress * Mathf.PI
-                + _sineWaveData.AmplOffset * Mathf.PI + _sineWaveData.ElapsedTime * Mathf.PI);
+        //float CalculatePointHeight(float progress)
+        //{
+        //    float y = _sineWaveData.Amplitude * Mathf.Sin((_sineWaveData.Frequency * progress
+        //        + _sineWaveData.AmplOffset + _sineWaveData.ElapsedTime) * Mathf.PI);
 
-            return y;
-        }
+        //    return y;
+        //}
 
-        float CalculatePointHeightWithNoise(float progress)
-        {
-            float y = _sineWaveData.Amplitude * Mathf.Sin(_sineWaveData.Frequency * progress * Mathf.PI
-                + _sineWaveData.AmplOffset * Mathf.PI + _sineWaveData.ElapsedTime * Mathf.PI);
+        //float CalculatePointHeightWithNoise(float progress)
+        //{
+        //    float y = _sineWaveData.Amplitude * Mathf.Sin((_sineWaveData.Frequency * progress
+        //        + _sineWaveData.AmplOffset + _sineWaveData.ElapsedTime) * Mathf.PI);
 
-            float noise = Random.Range(-_sineWaveData.Noise, _sineWaveData.Noise);
-            _noiseValues.Add(noise);
+        //    float noise = Random.Range(-_sineWaveData.Noise, _sineWaveData.Noise);
+        //    _noiseValues.Add(noise);
 
-            y += noise;
+        //    y += noise;
 
 
-            return y;
-        }
+        //    return y;
+        //}
 
-        float CalculatePointHeightSpecial(float progressXAxis, float progressZAxis, bool includeNoise)
-        {
-            float y = _sineWaveData.Amplitude * Mathf.Sin(_sineWaveData.Frequency * progressXAxis * Mathf.PI + progressZAxis * Mathf.PI
-                + _sineWaveData.AmplOffset * Mathf.PI + _sineWaveData.ElapsedTime * Mathf.PI);
+        //float GenerateDiagonalSineWave(float progressXAxis, float progressZAxis, bool includeNoise)
+        //{
+        //    float offset = progressXAxis + progressZAxis;
+        //    float y = _sineWaveData.Amplitude * Mathf.Sin((_sineWaveData.Frequency * offset
+        //        + _sineWaveData.AmplOffset + _sineWaveData.ElapsedTime) * Mathf.PI);
 
-            float noise = 0;
-            if (includeNoise)
-            {
-                noise = Random.Range(-_sineWaveData.Noise, _sineWaveData.Noise);
-                _noiseValues.Add(noise);
-            }
+        //    float noise = 0;
+        //    if (includeNoise)
+        //    {
+        //        noise = Random.Range(-_sineWaveData.Noise, _sineWaveData.Noise);
+        //        _noiseValues.Add(noise);
+        //    }
 
-            y += noise;
+        //    y += noise;
 
-            return y;
-        }
+        //    return y;
+        //}
+
+        //float GenerateRippleEffect(float progressXAxis, float progressZAxis)
+        //{
+        //    progressXAxis -= 0.5f;
+        //    progressZAxis -= 0.5f;
+        //    float offset = (progressXAxis * progressXAxis) + (progressZAxis * progressZAxis);
+        //    float y = _sineWaveData.Amplitude * Mathf.Sin((_sineWaveData.ElapsedTime + offset * _sineWaveData.Frequency) * Mathf.PI);
+
+        //    return y;
+        //}
     }
 }
