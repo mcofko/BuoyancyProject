@@ -1,9 +1,11 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(LineRenderer), typeof(Rigidbody))]
-public class CubeController : MonoBehaviour {
+public class CubeController : MonoBehaviour
+{
 
     [SerializeField]
     private GameObject lineRendPrefab;
@@ -11,112 +13,137 @@ public class CubeController : MonoBehaviour {
     private GameObject planePrefab;
     [SerializeField]
     private GameObject spherePrefab;
+    [SerializeField]
+    private GameObject wavesObj;
 
-    private GameObject[] linePrefabs = new GameObject[3];
-    private GameObject facingVelocityPlane;
 
-    private LineRenderer lineRend;
-    private Rigidbody cubeBody;
-    private BoxCollider boxCollider;
+    private Mesh _waveMesh;
+    private LineRenderer _lineRend;
+    private Rigidbody _cubeBody;
+    private BoxCollider _boxCollider;
 
-    private Vector3 boxSize;
-    private Vector3 startPos;
-
-    private float waterLevel = -100f;
-    private Vector3 _buoyancyForce = new Vector3(0f, 12.0f, 0f);
-    private Vector3 _viscosity = new Vector3(0.75f, 0f, 0.75f);
-    private Vector3 _currentWaterForceUp;
-    private float _currentViscosity;
-    private Vector3 _currentViscosityVector;
+    private float _waveWaterLevel = -100f;
+    private Vector3 _buoyancyForce = new Vector3(0f, 0.0f, 0f);
+    private Vector3 _currentBuoyancyForce;
 
     private Vector3[] _cubeVerticesLS = new Vector3[8];
     private Vector3[] _cubeVerticesWS = new Vector3[8];
     private List<Vector3> _surfacePointsPushingDown;
-    private Vector3 vec1FacinfSurface;
-    private Vector3 vec2FacinfSurface;
+    private Vector3 _vec1FacinfSurface;
+    private Vector3 _vec2FacinfSurface;
 
-    private float duration = 10.0f;
+    // Constants
+    private const float WATER_DENSITY = 0.4f;
+    private const float CUBE_DENSITY = 0.3f;
+
+    // helper variables to allow easier testing
+    //helper sphere points
+    private GameObject[] linePrefabs = new GameObject[3];
+    private GameObject[] spheres = new GameObject[3];
+    private Vector3 startPos;
+    private float duration = 16.0f;
     private float elapsedTime = 0.0f;
-    private Vector3 startVelocity = new Vector3(0.0f, 0.0f, 0.0f);
+    private Vector3 startVelocity = new Vector3(-6.0f, 0.0f, 0.0f);
 
     private void Awake()
     {
-        lineRend = GetComponent<LineRenderer>();
-        cubeBody = GetComponent<Rigidbody>();
-        boxCollider = GetComponent<BoxCollider>();
-
-        boxSize = boxCollider.size;
-        startPos = transform.position;
+        _lineRend = GetComponent<LineRenderer>();
+        _cubeBody = GetComponent<Rigidbody>();
+        _boxCollider = GetComponent<BoxCollider>();
         _surfacePointsPushingDown = new List<Vector3>();
-    }
 
-    // Use this for initialization
-    void Start () {
-        //add start speed to cube
-        
-        cubeBody.velocity = startVelocity;
-        cubeBody.SetDensity(0.3f);
-        float volume = CalculateObjectsVolume();
-        float buoyancy = 0.4f * volume * 9.8f;
-        _buoyancyForce = new Vector3(0f, buoyancy, 0f);
-        Debug.Log("Wooden Cube mass: " + cubeBody.mass + ", Volume: " + volume + ", Buoyance: " + buoyancy);
 
+        // helper stuff
+        startPos = transform.position;
+        for (int i = 0; i < spheres.Length; i++)
+        {
+            spheres[i] = Instantiate(spherePrefab, Vector3.zero, Quaternion.identity);
+        }
         for (int i = 0; i < linePrefabs.Length; i++)
         {
             linePrefabs[i] = Instantiate(lineRendPrefab, Vector3.zero, Quaternion.identity);
             linePrefabs[i].transform.parent = gameObject.transform;
         }
+    }
 
+    // Use this for initialization
+    void Start()
+    {
+        //add start speed to cube
+        _cubeBody.velocity = startVelocity;
+        _waveMesh = wavesObj.GetComponent<MeshFilter>().sharedMesh;
+
+        CalculateBuoyancyForce();
         UpdateCubeVertices(true);
-	}
-	
-	// Update is called once per frame
-	void Update () {
-        return;
+    }
 
+    // Update is called once per frame
+    void Update()
+    {
+        //UpdateCubeVertices(false);
+        //FindWaterLevelTriggerPoint();
+
+        //CalculateWaterForcePointsPushingOnSurface();
+        //Vector3 pivotPoint = UpdateCubesPivotPointOptimized();
+        //ApplyWaterForce(pivotPoint);
+
+        //RestartCubesPosition();
+    }
+
+    // water forces are need to constatly affect on the object in the water
+    // that is the main reason of moving methods from Update() to FixedUpdate()
+    private void FixedUpdate()
+    {
         UpdateCubeVertices(false);
-        CalculateWaterForcePointsPushingOnSurface();
-        Vector3 pivotPoint = UpdateCubesPivotPointOptimized();
-        ApplyWaterForce(pivotPoint);
+        FindWaterLevelTriggerPoint();
 
+        CalculateWaterForcePointsPushingOnSurface();
+        //Vector3 pivotPoint = UpdateCubesPivotPointOptimized();
+        ApplyWaterForce(Vector3.zero);
 
         //DrawForceLines();
         RestartCubesPosition();
-	}
-
-    void ApplyWaterForce(Vector3 pivotPoint)
-    {
-        Vector3 direction = cubeBody.velocity.normalized;
-
-        float bottomYPos = transform.position.y; // - transform.localScale.y / 2;
-        float deltaY = waterLevel - bottomYPos;
-        float deltaUnderWater = deltaY / transform.localScale.y;
-
-        if (deltaUnderWater > 1.0f) deltaUnderWater = 1.0f;
-        else if (deltaUnderWater < 0.0f) deltaUnderWater = 0.0f;
-
-        _currentWaterForceUp = deltaUnderWater * _buoyancyForce;
-
-        _currentViscosity = (deltaUnderWater * _viscosity).magnitude;
-        _currentViscosityVector = cubeBody.velocity * -1.0f * _currentViscosity;
-
-        //Debug.Log("Under sea! Cubes velocity is: " + cubeBody.velocity + ", Up Force: " + _currentWaterForceUp + ", viscosity: " + _currentViscosity);
-
-
-        // buoyance force
-        cubeBody.AddForceAtPosition(_currentWaterForceUp, pivotPoint);
-        cubeBody.AddForceAtPosition(_currentViscosityVector, pivotPoint);
-
-        for (int i = 0; i < _surfacePointsPushingDown.Count; i++)
-        {
-            cubeBody.AddForceAtPosition(-cubeBody.velocity / 10, _surfacePointsPushingDown[i]);
-        }
-        
     }
 
+    // Method applies all water forces which act on submerged object - buoyancy and viscosity forces
+    // First it checks how deep the object is, and then it applies the correct ratio of forces to it
+    // Object rotation gets dampered with help of Torque force acting in oppposite direction of angular velocity
+    void ApplyWaterForce(Vector3 pivotPoint)
+    {
+        float deltaUnderWater = CalculateSubMergedRatio();
+        if (deltaUnderWater > 1.0f) deltaUnderWater = 1.0f;
+        else if (deltaUnderWater < 0.2f) deltaUnderWater = 0.0f;
+
+        //spheres[0].transform.position = _cubeVerticesWS[0];
+        //spheres[1].transform.position = _cubeVerticesWS[7];
+        //spheres[2].transform.position = new Vector3(_cubeVerticesWS[0].x, waterLevel, _cubeVerticesWS[0].z);
+
+        // buoyance force
+        _currentBuoyancyForce = deltaUnderWater * _buoyancyForce;
+        _cubeBody.AddForceAtPosition(_currentBuoyancyForce, transform.position);
+
+        // Viscosity Force working on Cube when it's under water
+        for (int i = 0; i < _surfacePointsPushingDown.Count; i++)
+        {
+            _cubeBody.AddForceAtPosition(-_cubeBody.velocity / 8, _surfacePointsPushingDown[i]);
+        }
+
+        // CHECK TORQUE FORCE, if it's too big damper it
+        if (deltaUnderWater > 0.2f)
+        {
+            if (_cubeBody.angularVelocity.sqrMagnitude > 2.5f)
+            {
+                _cubeBody.AddTorque(_cubeBody.angularVelocity * -1.0f);
+                Debug.Log("Angular Velocity: " + _cubeBody.angularVelocity + ", magnitude: " + _cubeBody.angularVelocity.sqrMagnitude);
+            }
+        }
+    }
+
+    // Calculates both perpendicular vectors to velocity vector and with raycasting back to the object (opposite direction of velocity)
+    // it tries to define number of points acting as forces back to the buoyancy force
     void CalculateWaterForcePointsPushingOnSurface()
     {
-        Vector3 velocity = cubeBody.velocity;
+        Vector3 velocity = _cubeBody.velocity;
         Vector3 velocityDirection = velocity.normalized;
         Vector3 tempVector = Vector3.forward;
 
@@ -124,28 +151,25 @@ public class CubeController : MonoBehaviour {
         Vector3 perp2 = Vector3.Cross(velocityDirection, perp1);
 
         Vector3 velEndPoint = transform.position + velocityDirection * 4.0f;
-        vec1FacinfSurface = velEndPoint + perp1 * 4.0f;
-        vec2FacinfSurface = velEndPoint + perp2 * 4.0f;
+        _vec1FacinfSurface = velEndPoint + perp1 * 4.0f;
+        _vec2FacinfSurface = velEndPoint + perp2 * 4.0f;
 
         //DrawVelocityVectors(velEndPoint);
-        //facingVelocityPlane.transform.position = velEndPoint;
-        //facingVelocityPlane.transform.LookAt(transform.position, Vector3.up);
 
-        float width = Vector3.Distance(velEndPoint, vec1FacinfSurface);
-        float height = Vector3.Distance(velEndPoint, vec1FacinfSurface);
+        float width = Vector3.Distance(velEndPoint, _vec1FacinfSurface);
+        float height = Vector3.Distance(velEndPoint, _vec1FacinfSurface);
         RaycastHit hit;
         _surfacePointsPushingDown.Clear();
-        
-        for (float x = -width; x < width; x+=0.8f)
+
+        for (float x = -width; x < width; x += 0.8f)
         {
-            for (float y = -height; y < height; y+= 0.8f)
+            for (float y = -height; y < height; y += 0.8f)
             {
                 Vector3 start = velEndPoint + (perp1.normalized * x) + (perp2.normalized * y);
 
-                
                 if (Physics.Raycast(start, -velocityDirection, out hit, 40.0f))
                 {
-                    if (hit.transform.gameObject.Equals(gameObject) && hit.point.y < (waterLevel - 0.2f))
+                    if (hit.transform.gameObject.Equals(gameObject) && hit.point.y < (_waveWaterLevel - 0.2f))
                     {
                         _surfacePointsPushingDown.Add(hit.point);
                         //Debug.DrawLine(start, hit.point, Color.blue, 0.1f, false);
@@ -155,23 +179,21 @@ public class CubeController : MonoBehaviour {
         }
     }
 
+    // Find center point of submerged part of the object
     Vector3 UpdateCubesPivotPointOptimized()
     {
-        Vector3 velocity = cubeBody.velocity;
-        Vector3 velocityDirection = velocity.normalized;
-        Vector3 tempVector = Vector3.forward;
+        Vector3 perp1 = transform.TransformVector(Vector3.left);
+        Vector3 perp2 = transform.TransformVector(Vector3.forward);
 
-        Vector3 perp1 = Vector3.Cross(velocityDirection, tempVector);
-        Vector3 perp2 = Vector3.Cross(velocityDirection, perp1);
-
-        Vector3 centerUnderWaterPoint = new Vector3(transform.position.x, -30.0f, transform.position.z);
+        Vector3 centerUnderWaterPoint = new Vector3(transform.position.x, -50.0f, transform.position.z);
         Vector3 centerOfMass = Vector3.zero;
 
         RaycastHit hit;
         List<Vector3> underWaterPoints = new List<Vector3>();
 
-        float width = 5.0f;
-        float height = 5.0f;
+        float length = Vector3.Distance(_cubeVerticesWS[0], _cubeVerticesWS[_cubeVerticesWS.Length - 1]);
+        float width = length;
+        float height = length;
 
         for (float x = -width; x < width; x += 0.5f)
         {
@@ -182,7 +204,7 @@ public class CubeController : MonoBehaviour {
 
                 if (Physics.Raycast(start, Vector3.up, out hit, 80.0f))
                 {
-                    if (hit.transform.gameObject.Equals(gameObject) && hit.point.y < (waterLevel - 0.2f))
+                    if (hit.transform.gameObject.Equals(gameObject) && hit.point.y < _waveWaterLevel)
                     {
                         centerOfMass += hit.point;
                         underWaterPoints.Add(hit.point);
@@ -204,10 +226,11 @@ public class CubeController : MonoBehaviour {
         return centerOfMass;
     }
 
+    // Updates cubes local space vertex positions to world space
     void UpdateCubeVertices(bool initialize)
     {
         if (initialize)
-        { 
+        {
             float width = 0.5f; //transform.localScale.x / 2 / 3
             float height = 0.5f; //transform.localScale.y / 2 / 0.66f
             float depth = 0.5f;
@@ -226,7 +249,51 @@ public class CubeController : MonoBehaviour {
         {
             _cubeVerticesWS[i] = transform.TransformPoint(_cubeVerticesLS[i]);
 
-            Instantiate(spherePrefab, _cubeVerticesWS[i], Quaternion.identity);
+            //Instantiate(spherePrefab, _cubeVerticesWS[i], Quaternion.identity);
+        }
+    }
+
+    void FindWaterLevelTriggerPoint()
+    {
+        // sort cube vertices from lowest to highest one
+        Array.Sort(_cubeVerticesWS, delegate (Vector3 pt1, Vector3 pt2) { return pt1.y.CompareTo(pt2.y); });
+
+        //find closest water vertex to one of cubes lowest vertices
+        float minDist = 9999;
+        int cubeVertexIndex = -1;
+        int waterVertexIndex = -1;
+        int waterTriangleIndex = -1;
+        int[] triangles = _waveMesh.triangles;
+        Vector3[] vertices = _waveMesh.vertices;
+        Vector3 waveVertex = Vector3.zero;
+        Vector3 dist = Vector3.zero;
+
+        for (int i = 0; i < _cubeVerticesWS.Length / 2; i++)
+        {
+            Vector3 cubeVertex = _cubeVerticesWS[i];
+            for (int t = 0; t < triangles.Length; t++)
+            {
+                waveVertex = vertices[triangles[t]];
+                dist = cubeVertex - waveVertex;
+
+                // check current magnitude against current shortest one
+                if (dist.sqrMagnitude < minDist)
+                {
+                    minDist = dist.sqrMagnitude;
+                    cubeVertexIndex = i;
+                    waterTriangleIndex = t;
+                    waterVertexIndex = triangles[t];
+                }
+            }
+        }
+
+        waveVertex = vertices[waterVertexIndex];
+
+        if (_cubeVerticesWS[cubeVertexIndex].y <= waveVertex.y)
+        {
+            _waveWaterLevel = Mathf.Round(waveVertex.y * 10) / 10;
+            //GameObject sphere = Instantiate(spherePrefab, _cubeVerticesWS[cubeVertexIndex], Quaternion.identity);
+            //DestroyObject(sphere, 0.3f);
         }
     }
 
@@ -255,7 +322,7 @@ public class CubeController : MonoBehaviour {
         Vector3[] vertices = mesh.vertices;
         int[] triangles = mesh.triangles;
         for (int i = 0; i < mesh.triangles.Length; i += 3)
-     {
+        {
             Vector3 p1 = vertices[triangles[i + 0]];
             Vector3 p2 = vertices[triangles[i + 1]];
             Vector3 p3 = vertices[triangles[i + 2]];
@@ -264,26 +331,37 @@ public class CubeController : MonoBehaviour {
         return Mathf.Abs(volume);
     }
 
-    private void OnTriggerEnter(Collider other)
+    float CalculateSubMergedRatio()
     {
-        //Debug.Log("Felt into sea! Cubes velocity is: " + cubeBody.velocity);
-
-        if (waterLevel == -100.0f)
-        {
-            waterLevel = transform.position.y - gameObject.transform.localScale.y / 2;
-        }
+        float bottomYPos = _cubeVerticesWS[0].y;
+        float deltaY = _waveWaterLevel - bottomYPos;
+        float height = (_cubeVerticesWS[_cubeVerticesWS.Length - 1].y - _cubeVerticesWS[0].y);
+        return deltaY / height;
     }
 
+    void CalculateBuoyancyForce()
+    {
+        _cubeBody.SetDensity(CUBE_DENSITY);
+
+        float volume = CalculateObjectsVolume();
+        float buoyancy = WATER_DENSITY * volume * Physics.gravity.y;
+        _buoyancyForce = new Vector3(0f, -buoyancy, 0f);
+
+        //Debug.Log("Wooden Cube mass: " + _cubeBody.mass + ", Volume: " + volume + ", Buoyance: " + buoyancy);
+    }
+
+    // ********* Helper Methods *****************************************************
+    // ******************************************************************************
     void RestartCubesPosition()
     {
         elapsedTime += Time.deltaTime;
 
-        if (transform.position.y < -60.0f || elapsedTime >= duration) 
+        if (transform.position.y < -60.0f || elapsedTime >= duration)
         {
             elapsedTime = 0;
             transform.position = startPos;
             transform.rotation = Quaternion.identity;
-            cubeBody.velocity = startVelocity;
+            _cubeBody.velocity = startVelocity;
         }
     }
 
@@ -292,12 +370,12 @@ public class CubeController : MonoBehaviour {
         LineRenderer lr1 = linePrefabs[0].GetComponent<LineRenderer>();
         lr1.startColor = lr1.endColor = Color.green;
         lr1.positionCount = 2;
-        lr1.SetPositions(new Vector3[] { velEndPoint, vec1FacinfSurface });
+        lr1.SetPositions(new Vector3[] { velEndPoint, _vec1FacinfSurface });
 
         LineRenderer lr2 = linePrefabs[1].GetComponent<LineRenderer>();
         lr2.startColor = lr2.endColor = Color.green;
         lr2.positionCount = 2;
-        lr2.SetPositions(new Vector3[] { velEndPoint, vec2FacinfSurface });
+        lr2.SetPositions(new Vector3[] { velEndPoint, _vec2FacinfSurface });
 
         // Velocity vector
         LineRenderer lr3 = linePrefabs[2].GetComponent<LineRenderer>();
@@ -308,14 +386,14 @@ public class CubeController : MonoBehaviour {
 
     void DrawForceLines()
     {
-        if (cubeBody.velocity.magnitude > 0 && transform.position.y > -50.0f)
+        if (_cubeBody.velocity.magnitude > 0 && transform.position.y > -50.0f)
         {
-            lineRend.positionCount = 4;
-            lineRend.SetPosition(0, transform.position);
-            lineRend.SetPosition(1, transform.position + (_currentWaterForceUp / 5.0f));
+            _lineRend.positionCount = 4;
+            _lineRend.SetPosition(0, transform.position);
+            _lineRend.SetPosition(1, transform.position + (_currentBuoyancyForce / 5.0f));
 
-            lineRend.SetPosition(2, transform.position);
-            lineRend.SetPosition(3, transform.position + (_currentViscosityVector / 2.0f));
+            _lineRend.SetPosition(2, transform.position);
+            _lineRend.SetPosition(3, transform.position + (_cubeBody.velocity / 5.0f));
         }
     }
 }

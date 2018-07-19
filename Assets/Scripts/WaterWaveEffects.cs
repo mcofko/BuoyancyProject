@@ -109,7 +109,12 @@ public class WaterWaveEffects {
     float AddPerlinNoise(float progressXAxis, float progressZAxis)
     {
         float noiseWalk = 10.0f;
-        float noiseStrength = 1.0f;
+        float noiseStrength = 3.0f;
+
+        //testing 
+        progressXAxis = 12.0f + progressXAxis * 2.0f;
+        progressZAxis = 36.0f + progressZAxis * 2.0f;
+
         return Mathf.PerlinNoise(progressXAxis + noiseWalk, progressZAxis + Mathf.Sin(Time.time* 0.1f)) * noiseStrength;
     }
 }

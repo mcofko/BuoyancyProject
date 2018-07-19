@@ -88,6 +88,7 @@ public class WaveController : MonoBehaviour {
         
 
         return;
+        // does not work correctly on waves with sine function applied
         smootherWaveMesh = CloneMesh(waveMesh);
         // Apply Laplacian Smoothing Filter to Mesh
         int iterations = 1;

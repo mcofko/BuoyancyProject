@@ -7,7 +7,6 @@ namespace Waves
 {
     public class WaveGenerator
     {
-
         private static WaveGenerator _instance;
         public static WaveGenerator Instance
         {
@@ -64,6 +63,7 @@ namespace Waves
             }
         }
 
+        // invoked on each fixedUpdate frame, and calculates new y position, with help of GetWaveYPoint() method
         public void CalculateWaveVerticesOptimized(ref Vector3[] vertices, ref int[] triangles, Vector3[] meshVertices)
         {
             float progressZAxis = 0;
@@ -137,6 +137,7 @@ namespace Waves
             Convert2DTo1DArray(vertices, uvs, triangles, out vertices1D, out uvs1D, out triangles1D);
         }
 
+        // Creates wave mesh. Proceduraly generating vertices, triangles, uvs
         public void CreateWaveMeshOptimized(int dimension, ref List<Vector3> vertices, ref List<Vector2> uvs, ref List<int> triangles)
         {     
             _noiseValues = new List<float>();
