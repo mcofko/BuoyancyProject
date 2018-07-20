@@ -32,7 +32,7 @@ namespace Waves
         // **** private variable ****
         private int _segmentation;
         
-        List<float> _noiseValues;
+        //List<float> _noiseValues;
 
         public void SetSegmentation(int dimension)
         {
@@ -140,8 +140,6 @@ namespace Waves
         // Creates wave mesh. Proceduraly generating vertices, triangles, uvs
         public void CreateWaveMeshOptimized(int dimension, ref List<Vector3> vertices, ref List<Vector2> uvs, ref List<int> triangles)
         {     
-            _noiseValues = new List<float>();
-
             float width = (float)dimension / (float)_segmentation;
             float height = (float)dimension / (float)_segmentation;
             float progressXAxis = 0.0f;
