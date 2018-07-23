@@ -41,6 +41,15 @@ Material:
     - _Metallic: 0
     - _Scale: 0.05
     - _Speed: -1.11
+    - _TestX: 0
+    - _WaveAmpl1: 0
+    - _WaveAmpl2: 0
+    - _WaveAmpl3: 0
+    - _WaveAmpl4: 0
+    - _WaveAmpl5: 0
+    - _WaveAmpl6: 0
+    - _WaveAmpl7: 0
+    - _WaveAmpl8: 0
     - _WaveAmplitude1: 0
     - _WaveAmplitude2: 0
     - _WaveAmplitude3: 0
@@ -66,4 +75,4 @@ Material:
     - _zImpact7: 0
     - _zImpact8: 0
     m_Colors:
-    - _Color: {r: 0.23113108, g: 0.35039815, b: 0.6985294, a: 1}
+    - _Color: {r: 0.63235295, g: 0.72616625, b: 1, a: 1}

@@ -38,12 +38,14 @@ public class CubeController : MonoBehaviour
 
     // helper variables to allow easier testing
     //helper sphere points
-    private GameObject[] linePrefabs = new GameObject[3];
+    private LineRenderer[] linePrefabs = new LineRenderer[3];
     private GameObject[] spheres = new GameObject[3];
     private Vector3 startPos;
     private float duration = 16.0f;
     private float elapsedTime = 0.0f;
-    private Vector3 startVelocity = new Vector3(-6.0f, 0.0f, 0.0f);
+    private Vector3 startVelocity = new Vector3(-5.0f, 0.0f, 0.0f);
+
+    private GameObject _facingCubePlane;
 
     private void Awake()
     {
@@ -61,9 +63,11 @@ public class CubeController : MonoBehaviour
         }
         for (int i = 0; i < linePrefabs.Length; i++)
         {
-            linePrefabs[i] = Instantiate(lineRendPrefab, Vector3.zero, Quaternion.identity);
+            linePrefabs[i] = Instantiate(lineRendPrefab, Vector3.zero, Quaternion.identity).GetComponent<LineRenderer>();
             linePrefabs[i].transform.parent = gameObject.transform;
         }
+        _facingCubePlane = Instantiate(planePrefab, Vector3.zero, Quaternion.identity);
+
     }
 
     // Use this for initialization
@@ -94,15 +98,29 @@ public class CubeController : MonoBehaviour
     // that is the main reason of moving methods from Update() to FixedUpdate()
     private void FixedUpdate()
     {
-        UpdateCubeVertices(false);
-        FindWaterLevelTriggerPoint();
+        if (IsWaveMeshGenerated())
+        { 
+            UpdateCubeVertices(false);
+            FindWaterLevelTriggerPoint();
 
-        CalculateWaterForcePointsPushingOnSurface();
-        //Vector3 pivotPoint = UpdateCubesPivotPointOptimized();
-        ApplyWaterForce(Vector3.zero);
+            CalculateWaterForcePointsPushingOnSurface();
+            //Vector3 pivotPoint = UpdateCubesPivotPointOptimized();
+            ApplyWaterForce(Vector3.zero);
 
-        //DrawForceLines();
-        RestartCubesPosition();
+            DrawForceLines();
+            DrawPlaneOppositeToCube();
+            RestartCubesPosition();
+        }
+    }
+
+    bool IsWaveMeshGenerated()
+    {
+        if (_waveMesh == null)
+        {
+            _waveMesh = wavesObj.GetComponent<MeshFilter>().sharedMesh;
+        }
+
+        return _waveMesh == null ? false : true;
     }
 
     // Method applies all water forces which act on submerged object - buoyancy and viscosity forces
@@ -393,7 +411,36 @@ public class CubeController : MonoBehaviour
             _lineRend.SetPosition(1, transform.position + (_currentBuoyancyForce / 5.0f));
 
             _lineRend.SetPosition(2, transform.position);
-            _lineRend.SetPosition(3, transform.position + (_cubeBody.velocity / 5.0f));
+            _lineRend.SetPosition(3, transform.position + (_cubeBody.velocity.normalized * 5.0f));
         }
+    }
+
+    void DrawPlaneOppositeToCube()
+    {
+        Vector3 cubeVelocity = _cubeBody.velocity.normalized;
+        Vector3 perp1 = Vector3.Cross(cubeVelocity, Vector3.up);
+        Vector3 perp2 = Vector3.Cross(cubeVelocity, perp1);
+
+        linePrefabs[0].positionCount = 2;
+        linePrefabs[0].startColor = Color.blue;
+        linePrefabs[0].endColor = Color.blue;
+        linePrefabs[0].SetPosition(0, (transform.position + cubeVelocity * 4.0f));
+        linePrefabs[0].SetPosition(1, (transform.position + cubeVelocity * 4.0f + perp1 * 14.0f));
+
+        linePrefabs[1].positionCount = 2;
+        linePrefabs[1].startColor = Color.blue;
+        linePrefabs[1].endColor = Color.blue;
+        linePrefabs[1].SetPosition(0, (transform.position + cubeVelocity * 4.0f));
+        linePrefabs[1].SetPosition(1, (transform.position + cubeVelocity * 4.0f + perp2 * 14.0f));
+
+        _facingCubePlane.transform.position = transform.position + cubeVelocity * 4.0f;
+        //_facingCubePlane.transform.forward = -cubeVelocity;  //works!!!
+        Quaternion rot = Quaternion.LookRotation(-_cubeBody.velocity, perp2);
+        _facingCubePlane.transform.rotation = rot; //works!!!
+
+
+        // fixed position and always facing cube object
+        //_facingCubePlane.transform.position = new Vector3(20.0f, 10.0f, 10.0f);
+        //_facingCubePlane.transform.forward = (transform.position - _facingCubePlane.transform.position).normalized;
     }
 }
